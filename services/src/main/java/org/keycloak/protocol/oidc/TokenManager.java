@@ -107,6 +107,8 @@ public class TokenManager {
         }
     }
 
+
+
     public static class TokenValidation {
         public final UserModel user;
         public final UserSessionModel userSession;
@@ -348,6 +350,38 @@ public class TokenManager {
         }
 
         return jws.readJsonContent(RefreshToken.class);
+    }
+
+    public AccessToken verifyAccessToken(KeycloakSession session, RealmModel realm, String encodedAccessToken, boolean checkExpiration) throws OAuthErrorException {
+        try {
+            AccessToken accessToken = toAccessToken(session, realm, encodedAccessToken);
+
+            if (checkExpiration) {
+                if (accessToken.getExpiration() != 0 && accessToken.isExpired()) {
+                    throw new OAuthErrorException(OAuthErrorException.INVALID_GRANT, "Access token expired");
+                }
+
+                if (accessToken.getIssuedAt() < realm.getNotBefore()) {
+                    throw new OAuthErrorException(OAuthErrorException.INVALID_GRANT, "Stale access token");
+                }
+            }
+
+            return accessToken;
+        } catch (JWSInputException e) {
+            throw new OAuthErrorException(OAuthErrorException.INVALID_GRANT, "Invalid access token", e);
+        }
+    }
+
+    public AccessToken toAccessToken(KeycloakSession session, RealmModel realm, String encodedAccessToken) throws JWSInputException, OAuthErrorException {
+        JWSInput jws = new JWSInput(encodedAccessToken);
+
+        PublicKey publicKey = session.keys().getRsaPublicKey(realm, jws.getHeader().getKeyId());
+
+        if (!RSAProvider.verify(jws, publicKey)) {
+            throw new OAuthErrorException(OAuthErrorException.INVALID_GRANT, "Invalid access token");
+        }
+
+        return jws.readJsonContent(AccessToken.class);
     }
 
     public IDToken verifyIDToken(KeycloakSession session, RealmModel realm, String encodedIDToken) throws OAuthErrorException {

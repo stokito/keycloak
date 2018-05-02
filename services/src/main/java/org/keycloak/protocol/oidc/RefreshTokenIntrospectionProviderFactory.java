@@ -17,14 +17,13 @@
  */
 package org.keycloak.protocol.oidc;
 
+import org.keycloak.OAuth2Constants;
 import org.keycloak.models.KeycloakSession;
 
 /**
  * @author <a href="mailto:psilva@redhat.com">Pedro Igor</a>
  */
 public class RefreshTokenIntrospectionProviderFactory extends AccessTokenIntrospectionProviderFactory {
-
-    private static final String REFRESH_TOKEN_TYPE = "refresh_token";
 
     @Override
     public TokenIntrospectionProvider create(KeycloakSession session) {
@@ -33,6 +32,6 @@ public class RefreshTokenIntrospectionProviderFactory extends AccessTokenIntrosp
 
     @Override
     public String getId() {
-        return REFRESH_TOKEN_TYPE;
+        return OAuth2Constants.TOKEN_TYPE_HINT_REFRESH_TOKEN;
     }
 }

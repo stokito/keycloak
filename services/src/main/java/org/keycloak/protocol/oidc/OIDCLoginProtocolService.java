@@ -34,6 +34,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oidc.endpoints.AuthorizationEndpoint;
 import org.keycloak.protocol.oidc.endpoints.LoginStatusIframeEndpoint;
 import org.keycloak.protocol.oidc.endpoints.LogoutEndpoint;
+import org.keycloak.protocol.oidc.endpoints.RevocationEndpoint;
 import org.keycloak.protocol.oidc.endpoints.TokenEndpoint;
 import org.keycloak.protocol.oidc.endpoints.UserInfoEndpoint;
 import org.keycloak.services.managers.AuthenticationManager;
@@ -110,6 +111,11 @@ public class OIDCLoginProtocolService {
     public static UriBuilder tokenUrl(UriBuilder baseUriBuilder) {
         UriBuilder uriBuilder = tokenServiceBaseUrl(baseUriBuilder);
         return uriBuilder.path(OIDCLoginProtocolService.class, "token");
+    }
+
+    public static UriBuilder revocationUrl(UriBuilder baseUriBuilder) {
+        UriBuilder uriBuilder = tokenServiceBaseUrl(baseUriBuilder);
+        return uriBuilder.path(OIDCLoginProtocolService.class, "revocation");
     }
 
     public static UriBuilder certsUrl(UriBuilder baseUriBuilder) {
@@ -220,6 +226,13 @@ public class OIDCLoginProtocolService {
     @Path("logout")
     public Object logout() {
         LogoutEndpoint endpoint = new LogoutEndpoint(tokenManager, realm, event);
+        ResteasyProviderFactory.getInstance().injectProperties(endpoint);
+        return endpoint;
+    }
+
+    @Path("revocation")
+    public Object revocation(){
+        RevocationEndpoint endpoint = new RevocationEndpoint(tokenManager, realm, event);
         ResteasyProviderFactory.getInstance().injectProperties(endpoint);
         return endpoint;
     }

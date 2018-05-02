@@ -18,6 +18,7 @@ package org.keycloak.protocol.oidc.endpoints;
 
 import org.jboss.resteasy.annotations.cache.NoCache;
 import org.jboss.resteasy.spi.HttpRequest;
+import org.keycloak.OAuth2Constants;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
@@ -25,7 +26,6 @@ import org.keycloak.events.EventType;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.protocol.oidc.AccessTokenIntrospectionProviderFactory;
 import org.keycloak.protocol.oidc.TokenIntrospectionProvider;
 import org.keycloak.protocol.oidc.utils.AuthorizeClientUtil;
 import org.keycloak.services.ErrorResponseException;
@@ -44,9 +44,6 @@ import javax.ws.rs.core.UriInfo;
  * @author <a href="mailto:psilva@redhat.com">Pedro Igor</a>
  */
 public class TokenIntrospectionEndpoint {
-
-    private static final String PARAM_TOKEN_TYPE_HINT = "token_type_hint";
-    private static final String PARAM_TOKEN = "token";
 
     @Context
     private KeycloakSession session;
@@ -80,13 +77,13 @@ public class TokenIntrospectionEndpoint {
         authorizeClient();
 
         MultivaluedMap<String, String> formParams = request.getDecodedFormParameters();
-        String tokenTypeHint = formParams.getFirst(PARAM_TOKEN_TYPE_HINT);
+        String tokenTypeHint = formParams.getFirst(OAuth2Constants.PARAM_TOKEN_TYPE_HINT);
 
         if (tokenTypeHint == null) {
-            tokenTypeHint = AccessTokenIntrospectionProviderFactory.ACCESS_TOKEN_TYPE;
+            tokenTypeHint = OAuth2Constants.TOKEN_TYPE_HINT_ACCESS_TOKEN;
         }
 
-        String token = formParams.getFirst(PARAM_TOKEN);
+        String token = formParams.getFirst(OAuth2Constants.PARAM_TOKEN);
 
         if (token == null) {
             throw throwErrorResponseException(Errors.INVALID_REQUEST, "Token not provided.", Status.BAD_REQUEST);

@@ -18,6 +18,7 @@
 package org.keycloak.protocol.oidc;
 
 import org.keycloak.Config;
+import org.keycloak.OAuth2Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 
@@ -25,8 +26,6 @@ import org.keycloak.models.KeycloakSessionFactory;
  * @author <a href="mailto:psilva@redhat.com">Pedro Igor</a>
  */
 public class AccessTokenIntrospectionProviderFactory implements TokenIntrospectionProviderFactory {
-
-    public static final String ACCESS_TOKEN_TYPE = "access_token";
 
     @Override
     public TokenIntrospectionProvider create(KeycloakSession session) {
@@ -50,6 +49,6 @@ public class AccessTokenIntrospectionProviderFactory implements TokenIntrospecti
 
     @Override
     public String getId() {
-        return ACCESS_TOKEN_TYPE;
+        return OAuth2Constants.TOKEN_TYPE_HINT_ACCESS_TOKEN;
     }
 }
