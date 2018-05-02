@@ -117,6 +117,10 @@ public interface OAuth2Constants {
 
 
     String DISPLAY_CONSOLE = "console";
+    String PARAM_TOKEN = "token";
+    String PARAM_TOKEN_TYPE_HINT = "token_type_hint";
+    String TOKEN_TYPE_HINT_ACCESS_TOKEN = "access_token";
+    String TOKEN_TYPE_HINT_REFRESH_TOKEN = "refresh_token";
 }
 
 

@@ -49,6 +49,9 @@ public class OIDCConfigurationRepresentation {
     @JsonProperty("end_session_endpoint")
     private String logoutEndpoint;
 
+    @JsonProperty("revocation_endpoint")
+    private String revocationEndpoint;
+
     @JsonProperty("jwks_uri")
     private String jwksUri;
 
@@ -167,6 +170,14 @@ public class OIDCConfigurationRepresentation {
 
     public void setLogoutEndpoint(String logoutEndpoint) {
         this.logoutEndpoint = logoutEndpoint;
+    }
+
+    public String getRevocationEndpoint() {
+        return revocationEndpoint;
+    }
+
+    public void setRevocationEndpoint(String revocationEndpoint) {
+        this.revocationEndpoint = revocationEndpoint;
     }
 
     public List<String> getGrantTypesSupported() {

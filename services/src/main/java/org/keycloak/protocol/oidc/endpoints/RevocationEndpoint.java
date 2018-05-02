@@ -1,0 +1,174 @@
+/*
+ * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * and other contributors as indicated by the @author tags.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.keycloak.protocol.oidc.endpoints;
+
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.spi.HttpRequest;
+import org.keycloak.OAuth2Constants;
+import org.keycloak.OAuthErrorException;
+import org.keycloak.common.ClientConnection;
+import org.keycloak.events.Errors;
+import org.keycloak.events.EventBuilder;
+import org.keycloak.events.EventType;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserSessionModel;
+import org.keycloak.protocol.oidc.TokenManager;
+import org.keycloak.protocol.oidc.utils.AuthorizeClientUtil;
+import org.keycloak.representations.IDToken;
+import org.keycloak.representations.RefreshToken;
+import org.keycloak.services.ErrorResponseException;
+import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.services.managers.UserSessionManager;
+import org.keycloak.services.resources.Cors;
+import org.keycloak.util.TokenUtil;
+
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
+import javax.ws.rs.core.*;
+
+import static org.keycloak.OAuth2Constants.*;
+
+
+public class RevocationEndpoint {
+    private static final Logger logger = Logger.getLogger(RevocationEndpoint.class);
+
+    @Context
+    private KeycloakSession session;
+
+    @Context
+    private ClientConnection clientConnection;
+
+    @Context
+    private HttpRequest request;
+
+    @Context
+    private HttpHeaders headers;
+
+    @Context
+    private UriInfo uriInfo;
+
+    private TokenManager tokenManager;
+    private RealmModel realm;
+    private EventBuilder event;
+
+    public RevocationEndpoint(TokenManager tokenManager, RealmModel realm, EventBuilder event) {
+        this.tokenManager = tokenManager;
+        this.realm = realm;
+        this.event = event;
+    }
+
+
+    /**
+     * Logout a session via a non-browser invocation.  Similar signature to refresh token except there is no grant_type.
+     * You must pass in the refresh token and
+     * authenticate the client if it is not public.
+     *
+     * If the client is a confidential client
+     * you must include the client-id and secret in an Basic Auth Authorization header.
+     *
+     * If the client is a public client, then you must include a "client_id" form parameter.
+     *
+     * returns 200 if successful, 400 if not with a json error response.
+     *
+     * @return
+     */
+    @POST
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response revocationToken() {
+        event.event(EventType.LOGOUT);
+
+        checkSsl();
+        checkRealm();
+        ClientModel client = authorizeClient();
+
+        MultivaluedMap<String, String> formParams = request.getDecodedFormParameters();
+        String token = formParams.getFirst(PARAM_TOKEN);
+        if (token == null) {
+            event.error(Errors.INVALID_TOKEN);
+            throw new ErrorResponseException(OAuthErrorException.INVALID_REQUEST, "Token not provided.", Response.Status.BAD_REQUEST);
+        }
+
+        String tokenTypeHint = formParams.getFirst(PARAM_TOKEN_TYPE_HINT);
+
+        try {
+            if (tokenTypeHint == null) {
+                tokenTypeHint = TOKEN_TYPE_HINT_REFRESH_TOKEN;
+            }
+            IDToken idToken = findIdToken(token, tokenTypeHint);
+            if (idToken == null) {
+                String anotherTokenType = tokenTypeHint.equals(TOKEN_TYPE_HINT_REFRESH_TOKEN) ? TOKEN_TYPE_HINT_ACCESS_TOKEN : TOKEN_TYPE_HINT_REFRESH_TOKEN;
+                idToken = findIdToken(token, anotherTokenType);
+            }
+
+            boolean offline = TokenUtil.TOKEN_TYPE_OFFLINE.equals(idToken.getType());
+
+            UserSessionModel userSessionModel;
+            if (offline) {
+                UserSessionManager sessionManager = new UserSessionManager(session);
+                userSessionModel = sessionManager.findOfflineUserSession(realm, idToken.getSessionState());
+            } else {
+                userSessionModel = session.sessions().getUserSession(realm, idToken.getSessionState());
+            }
+
+            if (userSessionModel != null) {
+                logout(userSessionModel, offline);
+            }
+        } catch (OAuthErrorException e) {
+            event.error(Errors.INVALID_TOKEN);
+            throw new ErrorResponseException(e.getError(), e.getDescription(), Response.Status.BAD_REQUEST);
+        }
+        return Cors.add(request, Response.ok()).auth().allowedOrigins(uriInfo, client).allowedMethods("POST").exposedHeaders(Cors.ACCESS_CONTROL_ALLOW_METHODS).build();
+    }
+
+    private IDToken findIdToken(String token, String tokenType) throws OAuthErrorException {
+        if (tokenType.equals(TOKEN_TYPE_HINT_REFRESH_TOKEN)) {
+            return tokenManager.verifyRefreshToken(session, realm, token, false);
+        } else {
+            return tokenManager.verifyAccessToken(session, realm, token, false);
+        }
+    }
+
+    private void logout(UserSessionModel userSession, boolean offline) {
+        AuthenticationManager.backchannelLogout(session, realm, userSession, uriInfo, clientConnection, headers, true, offline);
+        event.user(userSession.getUser()).session(userSession).success();
+    }
+
+    private ClientModel authorizeClient() {
+        ClientModel client = AuthorizeClientUtil.authorizeClient(session, event).getClient();
+
+        if (client.isBearerOnly()) {
+            throw new ErrorResponseException("invalid_client", "Bearer-only not allowed", Response.Status.BAD_REQUEST);
+        }
+
+        return client;
+    }
+
+    private void checkSsl() {
+        if (!uriInfo.getBaseUri().getScheme().equals("https") && realm.getSslRequired().isRequired(clientConnection)) {
+            throw new ErrorResponseException("invalid_request", "HTTPS required", Response.Status.FORBIDDEN);
+        }
+    }
+
+    private void checkRealm() {
+        if (!realm.isEnabled()) {
+            throw new ErrorResponseException("access_denied", "Realm not enabled", Response.Status.FORBIDDEN);
+        }
+    }
+}
