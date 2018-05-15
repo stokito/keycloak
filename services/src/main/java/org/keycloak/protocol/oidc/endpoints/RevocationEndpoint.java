@@ -155,7 +155,7 @@ public class RevocationEndpoint {
         ClientModel client = AuthorizeClientUtil.authorizeClient(session, event).getClient();
 
         if (client.isBearerOnly()) {
-            throw new ErrorResponseException("invalid_client", "Bearer-only not allowed", Response.Status.BAD_REQUEST);
+            throw new ErrorResponseException(OAuthErrorException.INVALID_CLIENT, "Bearer-only not allowed", Response.Status.BAD_REQUEST);
         }
 
         return client;
@@ -163,13 +163,13 @@ public class RevocationEndpoint {
 
     private void checkSsl() {
         if (!uriInfo.getBaseUri().getScheme().equals("https") && realm.getSslRequired().isRequired(clientConnection)) {
-            throw new ErrorResponseException("invalid_request", "HTTPS required", Response.Status.FORBIDDEN);
+            throw new ErrorResponseException(OAuthErrorException.INVALID_REQUEST, "HTTPS required", Response.Status.FORBIDDEN);
         }
     }
 
     private void checkRealm() {
         if (!realm.isEnabled()) {
-            throw new ErrorResponseException("access_denied", "Realm not enabled", Response.Status.FORBIDDEN);
+            throw new ErrorResponseException(OAuthErrorException.ACCESS_DENIED, "Realm not enabled", Response.Status.FORBIDDEN);
         }
     }
 }
