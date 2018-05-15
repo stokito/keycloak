@@ -19,7 +19,6 @@ package org.keycloak.protocol.oidc.endpoints;
 
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.spi.HttpRequest;
-import org.keycloak.OAuth2Constants;
 import org.keycloak.OAuthErrorException;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.events.Errors;
@@ -32,7 +31,6 @@ import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc.TokenManager;
 import org.keycloak.protocol.oidc.utils.AuthorizeClientUtil;
 import org.keycloak.representations.IDToken;
-import org.keycloak.representations.RefreshToken;
 import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.UserSessionManager;
@@ -41,6 +39,7 @@ import org.keycloak.services.validation.Validation;
 import org.keycloak.util.TokenUtil;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.POST;
 import javax.ws.rs.core.*;
 
@@ -136,7 +135,7 @@ public class RevocationEndpoint {
             event.error(Errors.INVALID_TOKEN);
             throw new ErrorResponseException(e.getError(), e.getDescription(), Response.Status.BAD_REQUEST);
         }
-        return Cors.add(request, Response.ok()).auth().allowedOrigins(uriInfo, client).allowedMethods("POST").exposedHeaders(Cors.ACCESS_CONTROL_ALLOW_METHODS).build();
+        return Cors.add(request, Response.ok()).auth().allowedOrigins(uriInfo, client).allowedMethods(HttpMethod.POST).exposedHeaders(Cors.ACCESS_CONTROL_ALLOW_METHODS).build();
     }
 
     private IDToken findIdToken(String token, String tokenType) throws OAuthErrorException {
