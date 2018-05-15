@@ -129,7 +129,10 @@ public class RevocationEndpoint {
         }
 
         boolean offline = TokenUtil.TOKEN_TYPE_OFFLINE.equals(idToken.getType());
-        closeSession(offline, idToken.getSessionState());
+        boolean sessionIsOnline = closeSession(offline, idToken.getSessionState());
+        if (!sessionIsOnline ) {
+            throw new OAuthErrorException(OAuthErrorException.INVALID_TOKEN, "Token expired or revoked");
+        }
     }
 
     private IDToken findIdToken(String token, String tokenType) throws OAuthErrorException {
@@ -140,7 +143,7 @@ public class RevocationEndpoint {
         }
     }
 
-    private void closeSession(boolean offline, String sessionState) {
+    private boolean closeSession(boolean offline, String sessionState) {
         UserSessionModel userSessionModel;
         if (offline) {
             UserSessionManager sessionManager = new UserSessionManager(session);
@@ -153,6 +156,7 @@ public class RevocationEndpoint {
         if (sessionIsOnline) {
             logout(userSessionModel, offline);
         }
+        return sessionIsOnline ;
     }
 
     private void logout(UserSessionModel userSession, boolean offline) {
