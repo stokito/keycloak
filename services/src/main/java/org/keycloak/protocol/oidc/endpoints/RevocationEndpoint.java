@@ -36,20 +36,26 @@ import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.UserSessionManager;
 import org.keycloak.services.resources.Cors;
 import org.keycloak.services.validation.Validation;
-import org.keycloak.util.TokenUtil;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.POST;
 import javax.ws.rs.core.*;
 
+import java.util.List;
+
+import static java.util.Arrays.asList;
 import static org.keycloak.OAuth2Constants.*;
+import static org.keycloak.util.TokenUtil.TOKEN_TYPE_BEARER;
+import static org.keycloak.util.TokenUtil.TOKEN_TYPE_OFFLINE;
+import static org.keycloak.util.TokenUtil.TOKEN_TYPE_REFRESH;
 
 /**
  * <a href="https://tools.ietf.org/html/rfc7009">RFC7009 OAuth 2.0 Token Revocation</aa>
  */
 public class RevocationEndpoint {
     private static final Logger logger = Logger.getLogger(RevocationEndpoint.class);
+    private static final List<String> SUPPORTED_TOKEN_TYPES = asList(TOKEN_TYPE_REFRESH, TOKEN_TYPE_OFFLINE, TOKEN_TYPE_BEARER);
 
     @Context
     private KeycloakSession session;
@@ -128,10 +134,20 @@ public class RevocationEndpoint {
             idToken = findIdToken(token, anotherTokenType);
         }
 
-        boolean offline = TokenUtil.TOKEN_TYPE_OFFLINE.equals(idToken.getType());
+        validateTokenType(idToken.getType());
+        boolean offline = TOKEN_TYPE_OFFLINE.equals(idToken.getType());
         boolean sessionIsOnline = closeSession(offline, idToken.getSessionState());
         if (!sessionIsOnline ) {
             throw new OAuthErrorException(OAuthErrorException.INVALID_TOKEN, "Token expired or revoked");
+        }
+    }
+
+    /**
+     * RFC7009 2.2.1. Check that we support the revocation of the presented token type
+     */
+    private void validateTokenType(String tokenType) throws OAuthErrorException {
+        if (!SUPPORTED_TOKEN_TYPES.contains(tokenType)) {
+            throw new OAuthErrorException(OAuthErrorException.UNSUPPORTED_TOKEN_TYPE);
         }
     }
 
