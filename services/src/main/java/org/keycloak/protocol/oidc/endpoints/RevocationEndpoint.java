@@ -129,18 +129,7 @@ public class RevocationEndpoint {
         }
 
         boolean offline = TokenUtil.TOKEN_TYPE_OFFLINE.equals(idToken.getType());
-
-        UserSessionModel userSessionModel;
-        if (offline) {
-            UserSessionManager sessionManager = new UserSessionManager(session);
-            userSessionModel = sessionManager.findOfflineUserSession(realm, idToken.getSessionState());
-        } else {
-            userSessionModel = session.sessions().getUserSession(realm, idToken.getSessionState());
-        }
-
-        if (userSessionModel != null) {
-            logout(userSessionModel, offline);
-        }
+        closeSession(offline, idToken.getSessionState());
     }
 
     private IDToken findIdToken(String token, String tokenType) throws OAuthErrorException {
@@ -148,6 +137,21 @@ public class RevocationEndpoint {
             return tokenManager.verifyRefreshToken(session, realm, token, false);
         } else {
             return tokenManager.verifyAccessToken(session, realm, token, false);
+        }
+    }
+
+    private void closeSession(boolean offline, String sessionState) {
+        UserSessionModel userSessionModel;
+        if (offline) {
+            UserSessionManager sessionManager = new UserSessionManager(session);
+            userSessionModel = sessionManager.findOfflineUserSession(realm, sessionState);
+        } else {
+            userSessionModel = session.sessions().getUserSession(realm, sessionState);
+        }
+
+        boolean sessionIsOnline = userSessionModel != null;
+        if (sessionIsOnline) {
+            logout(userSessionModel, offline);
         }
     }
 
