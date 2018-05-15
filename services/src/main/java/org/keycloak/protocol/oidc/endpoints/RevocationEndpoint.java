@@ -45,7 +45,9 @@ import javax.ws.rs.core.*;
 
 import static org.keycloak.OAuth2Constants.*;
 
-
+/**
+ * <a href="https://tools.ietf.org/html/rfc7009">RFC7009 OAuth 2.0 Token Revocation</aa>
+ */
 public class RevocationEndpoint {
     private static final Logger logger = Logger.getLogger(RevocationEndpoint.class);
 
@@ -76,22 +78,21 @@ public class RevocationEndpoint {
 
 
     /**
-     * Logout a session via a non-browser invocation.  Similar signature to refresh token except there is no grant_type.
-     * You must pass in the refresh token and
-     * authenticate the client if it is not public.
+     * Logout a session via a non-browser invocation.
+     * You must pass in the refresh or access token and authenticate the client if it is not public.
      *
-     * If the client is a confidential client
-     * you must include the client-id and secret in an Basic Auth Authorization header.
-     *
+     * If the client is a confidential client you must include the client-id and secret in an Basic Auth Authorization header.
      * If the client is a public client, then you must include a "client_id" form parameter.
      *
-     * returns 200 if successful, 400 if not with a json error response.
+     * rfc7009 2.2. says "invalid tokens do not cause an error because purpose of the revocation request, invalidating the token, is already achieved".
+     * Here is not separated when token format is invalid and when the token was already revoked (i.e. session was closed).
+     * But from security respective it's better to cause an error in both situation because thus we can prevent mistakes in client code when it think that token was actually revoked while it's not.
      *
-     * @return
+     * @return returns 200 if successful, 400 if not with a json error response.
      */
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    public Response revocationToken() {
+    public Response revokeToken() {
         event.event(EventType.LOGOUT);
 
         checkSsl();
