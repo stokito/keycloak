@@ -37,6 +37,7 @@ import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.UserSessionManager;
 import org.keycloak.services.resources.Cors;
+import org.keycloak.services.validation.Validation;
 import org.keycloak.util.TokenUtil;
 
 import javax.ws.rs.Consumes;
@@ -101,7 +102,7 @@ public class RevocationEndpoint {
 
         MultivaluedMap<String, String> formParams = request.getDecodedFormParameters();
         String token = formParams.getFirst(PARAM_TOKEN);
-        if (token == null) {
+        if (Validation.isBlank(token)) {
             event.error(Errors.INVALID_TOKEN);
             throw new ErrorResponseException(OAuthErrorException.INVALID_REQUEST, "Token not provided.", Response.Status.BAD_REQUEST);
         }
@@ -109,7 +110,7 @@ public class RevocationEndpoint {
         String tokenTypeHint = formParams.getFirst(PARAM_TOKEN_TYPE_HINT);
 
         try {
-            if (tokenTypeHint == null) {
+            if (Validation.isBlank(tokenTypeHint)) {
                 tokenTypeHint = TOKEN_TYPE_HINT_REFRESH_TOKEN;
             }
             IDToken idToken = findIdToken(token, tokenTypeHint);
