@@ -101,41 +101,46 @@ public class RevocationEndpoint {
 
         MultivaluedMap<String, String> formParams = request.getDecodedFormParameters();
         String token = formParams.getFirst(PARAM_TOKEN);
-        if (Validation.isBlank(token)) {
-            event.error(Errors.INVALID_TOKEN);
-            throw new ErrorResponseException(OAuthErrorException.INVALID_REQUEST, "Token not provided.", Response.Status.BAD_REQUEST);
-        }
-
         String tokenTypeHint = formParams.getFirst(PARAM_TOKEN_TYPE_HINT);
 
         try {
-            if (Validation.isBlank(tokenTypeHint)) {
-                tokenTypeHint = TOKEN_TYPE_HINT_REFRESH_TOKEN;
-            }
-            IDToken idToken = findIdToken(token, tokenTypeHint);
-            if (idToken == null) {
-                String anotherTokenType = tokenTypeHint.equals(TOKEN_TYPE_HINT_REFRESH_TOKEN) ? TOKEN_TYPE_HINT_ACCESS_TOKEN : TOKEN_TYPE_HINT_REFRESH_TOKEN;
-                idToken = findIdToken(token, anotherTokenType);
-            }
-
-            boolean offline = TokenUtil.TOKEN_TYPE_OFFLINE.equals(idToken.getType());
-
-            UserSessionModel userSessionModel;
-            if (offline) {
-                UserSessionManager sessionManager = new UserSessionManager(session);
-                userSessionModel = sessionManager.findOfflineUserSession(realm, idToken.getSessionState());
-            } else {
-                userSessionModel = session.sessions().getUserSession(realm, idToken.getSessionState());
-            }
-
-            if (userSessionModel != null) {
-                logout(userSessionModel, offline);
-            }
+            revokeToken(token, tokenTypeHint);
         } catch (OAuthErrorException e) {
             event.error(Errors.INVALID_TOKEN);
             throw new ErrorResponseException(e.getError(), e.getDescription(), Response.Status.BAD_REQUEST);
         }
         return Cors.add(request, Response.ok()).auth().allowedOrigins(uriInfo, client).allowedMethods(HttpMethod.POST).exposedHeaders(Cors.ACCESS_CONTROL_ALLOW_METHODS).build();
+    }
+
+    private void revokeToken(String token, String tokenTypeHint) throws OAuthErrorException {
+        if (Validation.isBlank(token)) {
+            event.error(Errors.INVALID_TOKEN);
+            throw new OAuthErrorException(OAuthErrorException.INVALID_REQUEST, "Token not provided.");
+        }
+
+        if (Validation.isBlank(tokenTypeHint)) {
+            tokenTypeHint = TOKEN_TYPE_HINT_REFRESH_TOKEN;
+        }
+
+        IDToken idToken = findIdToken(token, tokenTypeHint);
+        if (idToken == null) {
+            String anotherTokenType = tokenTypeHint.equals(TOKEN_TYPE_HINT_REFRESH_TOKEN) ? TOKEN_TYPE_HINT_ACCESS_TOKEN : TOKEN_TYPE_HINT_REFRESH_TOKEN;
+            idToken = findIdToken(token, anotherTokenType);
+        }
+
+        boolean offline = TokenUtil.TOKEN_TYPE_OFFLINE.equals(idToken.getType());
+
+        UserSessionModel userSessionModel;
+        if (offline) {
+            UserSessionManager sessionManager = new UserSessionManager(session);
+            userSessionModel = sessionManager.findOfflineUserSession(realm, idToken.getSessionState());
+        } else {
+            userSessionModel = session.sessions().getUserSession(realm, idToken.getSessionState());
+        }
+
+        if (userSessionModel != null) {
+            logout(userSessionModel, offline);
+        }
     }
 
     private IDToken findIdToken(String token, String tokenType) throws OAuthErrorException {
