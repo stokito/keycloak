@@ -7,6 +7,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.resource.ClientResource;
+import org.keycloak.common.util.Retry;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventType;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -15,6 +16,7 @@ import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.testsuite.Assert;
 import org.keycloak.testsuite.AssertEvents;
+import org.keycloak.testsuite.ProfileAssume;
 import org.keycloak.testsuite.admin.ApiUtil;
 import org.keycloak.testsuite.auth.page.account.Applications;
 import org.keycloak.testsuite.auth.page.login.OAuthGrant;
@@ -22,20 +24,19 @@ import org.keycloak.testsuite.util.JavascriptBrowser;
 import org.keycloak.testsuite.util.OAuthClient;
 import org.keycloak.testsuite.util.RealmBuilder;
 import org.keycloak.testsuite.util.UserBuilder;
-import org.openqa.selenium.By;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 
-import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.lang.Math.toIntExact;
 import static org.hamcrest.CoreMatchers.both;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
@@ -45,6 +46,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.keycloak.testsuite.util.URLAssert.assertCurrentUrlDoesntStartWith;
 import static org.keycloak.testsuite.util.URLAssert.assertCurrentUrlStartsWith;
+import static org.keycloak.testsuite.util.WaitUtils.waitForPageToLoad;
 import static org.keycloak.testsuite.util.WaitUtils.waitUntilElement;
 
 /**
@@ -76,17 +78,19 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
     public void setDefaultEnvironment() {
         testAppUrl = authServerContextRootPage + JAVASCRIPT_URL + "/index.html";
 
-        testRealmLoginPage.setAuthRealm(REALM_NAME);
+        jsDriverTestRealmLoginPage.setAuthRealm(REALM_NAME);
         oAuthGrantPage.setAuthRealm(REALM_NAME);
         applicationsPage.setAuthRealm(REALM_NAME);
 
         jsDriver.navigate().to(testAppUrl);
-        testExecutor = JavascriptTestExecutor.create(jsDriver, testRealmLoginPage);
+        testExecutor = JavascriptTestExecutor.create(jsDriver, jsDriverTestRealmLoginPage);
 
         waitUntilElement(outputArea).is().present();
         assertCurrentUrlStartsWith(testAppUrl, jsDriver);
 
         jsDriver.manage().deleteAllCookies();
+
+        setStandardFlowForClient();
     }
 
     private JSObjectBuilder defaultArguments() {
@@ -94,7 +98,7 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
     }
 
     private void assertOnTestAppUrl(WebDriver jsDriver, Object output, WebElement events) {
-        waitUntilElement(By.tagName("body")).is().present();
+        waitForPageToLoad();
         assertCurrentUrlStartsWith(testAppUrl, jsDriver);
     }
 
@@ -112,6 +116,25 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
                 .init(defaultArguments(), this::assertInitNotAuth);
     }
 
+    @Test
+    public void testLoginWithKCLocale() {
+        ProfileAssume.assumeCommunity();
+
+        RealmRepresentation testRealmRep = testRealmResource().toRepresentation();
+        testRealmRep.setInternationalizationEnabled(true);
+        testRealmRep.setDefaultLocale("en");
+        testRealmRep.setSupportedLocales(Stream.of("en", "de").collect(Collectors.toSet()));
+        testRealmResource().update(testRealmRep);
+        
+        testExecutor.init(defaultArguments(), this::assertInitNotAuth)
+                .login(this::assertOnLoginPage)
+                .loginForm(testUser, this::assertOnTestAppUrl)
+                .init(defaultArguments(), this::assertSuccessfullyLoggedIn)
+                .login("{kcLocale: 'de'}", assertLocaleIsSet("de"))
+                .init(defaultArguments(), this::assertSuccessfullyLoggedIn)
+                .login("{kcLocale: 'en'}", assertLocaleIsSet("en"));
+    }
+    
     @Test
     public void testRefreshToken() {
         testExecutor.init(defaultArguments(), this::assertInitNotAuth)
@@ -206,7 +229,6 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
                 .loginForm(testUser, this::assertOnTestAppUrl)
                 .init(defaultArguments().implicitFlow(), this::assertSuccessfullyLoggedIn);
 
-        setStandardFlowForClient();
     }
 
     @Test
@@ -223,12 +245,11 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
     @Test
     public void implicitFlowQueryTest() {
         setImplicitFlowForClient();
-        testExecutor.init(defaultArguments().implicitFlow().queryResponse(), this::assertInitNotAuth)
-                .login(((driver1, output, events) -> {
-                    waitUntilElement(By.tagName("body")).is().present();
-                    Assert.assertThat(driver1.getCurrentUrl(), containsString("Response_mode+%27query%27+not+allowed"));
-                }));
-        setStandardFlowForClient();
+        testExecutor.init(JSObjectBuilder.create().implicitFlow().queryResponse(), this::assertInitNotAuth)
+                .login((driver1, output, events1) -> Retry.execute(
+                        () -> assertThat(driver1.getCurrentUrl(), containsString("Response_mode+%27query%27+not+allowed")),
+                        20, 50)
+                );
     }
 
     @Test
@@ -236,7 +257,6 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
         setImplicitFlowForClient();
         testExecutor.logInAndInit(defaultArguments().implicitFlow(), testUser, this::assertSuccessfullyLoggedIn)
             .refreshToken(9999, assertOutputContains("Failed to refresh token"));
-        setStandardFlowForClient();
     }
 
     @Test
@@ -255,7 +275,6 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
         // Get to origin state
         realm.setAccessTokenLifespanForImplicitFlow(storeAccesTokenLifespan);
         adminClient.realms().realm(REALM_NAME).update(realm);
-        setStandardFlowForClient();
     }
 
     @Test
@@ -268,7 +287,6 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
                                 .addHeader("Accept", "application/json")
                                 .addHeader("Authorization", "Bearer ' + keycloak.token + '"),
                         assertResponseStatus(200));
-        setStandardFlowForClient();
     }
 
     @Test
@@ -402,9 +420,9 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
                 .add("realm", SPACE_REALM_NAME)
                 .add("clientId", CLIENT_ID);
 
-        testAppUrl = authServerContextRootPage + JAVASCRIPT_SPACE_URL + "/index.html";
+        testAppUrl = authServerContextRootPage + JAVASCRIPT_ENCODED_SPACE_URL + "/index.html";
         jsDriver.navigate().to(testAppUrl);
-        testRealmLoginPage.setAuthRealm(SPACE_REALM_NAME);
+        jsDriverTestRealmLoginPage.setAuthRealm(SPACE_REALM_NAME);
 
         testExecutor.configure(configuration)
                 .init(defaultArguments(), this::assertInitNotAuth)
@@ -415,7 +433,7 @@ public class JavascriptAdapterTest extends AbstractJavascriptTest {
 
         // Clean
         adminClient.realm(SPACE_REALM_NAME).update(RealmBuilder.edit(adminClient.realm(SPACE_REALM_NAME).toRepresentation()).name(REALM_NAME).build());
-        testRealmLoginPage.setAuthRealm(REALM_NAME);
+        jsDriverTestRealmLoginPage.setAuthRealm(REALM_NAME);
     }
 
     @Test

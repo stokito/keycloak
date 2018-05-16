@@ -40,6 +40,7 @@ public class OAuthErrorException extends Exception {
     // OAuth2 Bearer Token Usage
     public static final String INVALID_TOKEN = "invalid_token";
     public static final String INSUFFICIENT_SCOPE = "insufficient_scope";
+    public static final String UNSUPPORTED_TOKEN_TYPE = "unsupported_token_type";
 
     // OIDC Dynamic Client Registration
     public static final String INVALID_REDIRECT_URI = "invalid_redirect_uri";
