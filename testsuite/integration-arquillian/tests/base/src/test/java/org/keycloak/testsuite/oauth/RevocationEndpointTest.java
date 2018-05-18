@@ -74,7 +74,7 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         String refreshTokenString = tokenResponse.getRefreshToken();
 
         try (CloseableHttpResponse response = oauth.doRevokeToken(refreshTokenString, "password")) {
-            assertThat(response, Matchers.statusCodeIsHC(Status.NO_CONTENT));
+            assertThat(response, Matchers.statusCodeIsHC(Status.OK));
 
             assertNotNull(testingClient.testApp().getAdminLogoutAction());
         }
@@ -94,7 +94,7 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
 
         // Logout should succeed with expired refresh token, see KEYCLOAK-3302
         try (CloseableHttpResponse response = oauth.doRevokeToken(refreshTokenString, "password")) {
-            assertThat(response, Matchers.statusCodeIsHC(Status.NO_CONTENT));
+            assertThat(response, Matchers.statusCodeIsHC(Status.BAD_REQUEST));
 
             assertNotNull(testingClient.testApp().getAdminLogoutAction());
         }
