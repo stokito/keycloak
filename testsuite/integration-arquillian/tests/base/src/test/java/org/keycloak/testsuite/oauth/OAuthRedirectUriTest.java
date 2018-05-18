@@ -20,7 +20,6 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.jboss.arquillian.graphene.page.Page;
-import org.jgroups.protocols.TP;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +34,6 @@ import org.keycloak.testsuite.util.ClientBuilder;
 import org.keycloak.testsuite.util.ClientManager;
 import org.keycloak.testsuite.util.OAuthClient;
 import org.keycloak.testsuite.util.RealmBuilder;
-import org.openqa.selenium.By;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -386,7 +384,7 @@ public class OAuthRedirectUriTest extends AbstractKeycloakTest {
 
                 Assert.assertEquals("Expected success, but got error: " + tokenResponse.getError(), 200, tokenResponse.getStatusCode());
 
-                oauth.doLogout(tokenResponse.getRefreshToken(), "password");
+                oauth.doRevokeToken(tokenResponse.getRefreshToken(), "password");
             }
         }
     }

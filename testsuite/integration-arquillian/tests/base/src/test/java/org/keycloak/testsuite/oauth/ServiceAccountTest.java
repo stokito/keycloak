@@ -160,7 +160,7 @@ public class ServiceAccountTest extends AbstractKeycloakTest {
                 .detail(Details.CLIENT_AUTH_METHOD, ClientIdAndSecretAuthenticator.PROVIDER_ID)
                 .assertEvent();
 
-        HttpResponse logoutResponse = oauth.doLogout(response.getRefreshToken(), "secret1");
+        HttpResponse logoutResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret1");
         assertEquals(204, logoutResponse.getStatusLine().getStatusCode());
         events.expectLogout(accessToken.getSessionState())
                 .client("service-account-cl")

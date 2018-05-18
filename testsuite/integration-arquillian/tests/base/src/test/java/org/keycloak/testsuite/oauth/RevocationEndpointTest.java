@@ -18,6 +18,7 @@
 package org.keycloak.testsuite.oauth;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -44,15 +45,10 @@ import static org.keycloak.testsuite.admin.AbstractAdminTest.loadJson;
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
  */
-public class LogoutTest extends AbstractKeycloakTest {
+public class RevocationEndpointTest extends AbstractKeycloakTest {
 
     @Rule
     public AssertEvents events = new AssertEvents(this);
-
-    @Override
-    public void beforeAbstractKeycloakTest() throws Exception {
-        super.beforeAbstractKeycloakTest();
-    }
 
     @Before
     public void clientConfiguration() {
@@ -68,7 +64,7 @@ public class LogoutTest extends AbstractKeycloakTest {
     }
 
     @Test
-    public void postLogout() throws Exception {
+    public void revokeToken() throws Exception {
         oauth.doLogin("test-user@localhost", "password");
 
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
@@ -77,7 +73,7 @@ public class LogoutTest extends AbstractKeycloakTest {
         OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
         String refreshTokenString = tokenResponse.getRefreshToken();
 
-        try (CloseableHttpResponse response = oauth.doLogout(refreshTokenString, "password")) {
+        try (CloseableHttpResponse response = oauth.doRevokeToken(refreshTokenString, "password")) {
             assertThat(response, Matchers.statusCodeIsHC(Status.NO_CONTENT));
 
             assertNotNull(testingClient.testApp().getAdminLogoutAction());
@@ -85,7 +81,7 @@ public class LogoutTest extends AbstractKeycloakTest {
     }
 
     @Test
-    public void postLogoutExpiredRefreshToken() throws Exception {
+    public void revokeTokenExpiredRefreshToken() throws Exception {
         oauth.doLogin("test-user@localhost", "password");
 
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
@@ -97,15 +93,16 @@ public class LogoutTest extends AbstractKeycloakTest {
         adminClient.realm("test").update(RealmBuilder.create().notBefore(Time.currentTime() + 1).build());
 
         // Logout should succeed with expired refresh token, see KEYCLOAK-3302
-        try (CloseableHttpResponse response = oauth.doLogout(refreshTokenString, "password")) {
+        try (CloseableHttpResponse response = oauth.doRevokeToken(refreshTokenString, "password")) {
             assertThat(response, Matchers.statusCodeIsHC(Status.NO_CONTENT));
 
             assertNotNull(testingClient.testApp().getAdminLogoutAction());
         }
     }
 
+    @Ignore
     @Test
-    public void postLogoutWithValidIdToken() throws Exception {
+    public void revokeTokenWithValidIdToken() throws Exception {
         oauth.doLogin("test-user@localhost", "password");
 
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
@@ -126,8 +123,9 @@ public class LogoutTest extends AbstractKeycloakTest {
         }
     }
 
+    @Ignore
     @Test
-    public void postLogoutWithExpiredIdToken() throws Exception {
+    public void revokeTokenWithExpiredIdToken() throws Exception {
         oauth.doLogin("test-user@localhost", "password");
 
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
@@ -151,8 +149,9 @@ public class LogoutTest extends AbstractKeycloakTest {
         }
     }
 
+    @Ignore
     @Test
-    public void postLogoutWithValidIdTokenWhenLoggedOutByAdmin() throws Exception {
+    public void revokeTokenWithValidIdTokenWhenLoggedOutByAdmin() throws Exception {
         oauth.doLogin("test-user@localhost", "password");
 
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);

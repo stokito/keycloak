@@ -226,7 +226,7 @@ public class TokenIntrospectionTest extends AbstractTestRealmKeycloakTest {
         oauth.doLogin("test-user@localhost", "password");
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
         AccessTokenResponse accessTokenResponse = oauth.doAccessTokenRequest(code, "password");
-        oauth.doLogout(accessTokenResponse.getRefreshToken(), "password");
+        oauth.doRevokeToken(accessTokenResponse.getRefreshToken(), "password");
 
         String tokenResponse = oauth.introspectAccessTokenWithClientCredential("confidential-cli", "secret1", accessTokenResponse.getAccessToken());
         TokenMetadataRepresentation rep = JsonSerialization.readValue(tokenResponse, TokenMetadataRepresentation.class);

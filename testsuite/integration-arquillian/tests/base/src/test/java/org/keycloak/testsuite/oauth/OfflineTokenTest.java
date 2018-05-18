@@ -562,7 +562,7 @@ public class OfflineTokenTest extends AbstractKeycloakTest {
         response = oauth.doRefreshTokenRequest(response.getRefreshToken(), "secret1");
         assertEquals(200, response.getStatusCode());
 
-        CloseableHttpResponse logoutResponse = oauth.doLogout(response.getRefreshToken(), "secret1");
+        CloseableHttpResponse logoutResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret1");
         assertEquals(204, logoutResponse.getStatusLine().getStatusCode());
 
         response = oauth.doRefreshTokenRequest(response.getRefreshToken(), "secret1");
@@ -599,7 +599,7 @@ public class OfflineTokenTest extends AbstractKeycloakTest {
         assertEquals(TokenUtil.TOKEN_TYPE_OFFLINE, offlineToken.getType());
         assertEquals(0, offlineToken.getExpiration());
 
-        try (CloseableHttpResponse logoutResponse = oauth.doLogout(offlineTokenString, "secret1")) {
+        try (CloseableHttpResponse logoutResponse = oauth.doRevokeToken(offlineTokenString, "secret1")) {
             assertEquals(204, logoutResponse.getStatusLine().getStatusCode());
         }
 

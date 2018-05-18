@@ -533,9 +533,9 @@ public class OAuthClient {
     }
 
 
-    public CloseableHttpResponse doLogout(String refreshToken, String clientSecret) throws IOException {
+    public CloseableHttpResponse doRevokeToken(String refreshToken, String clientSecret) throws IOException {
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
-            HttpPost post = new HttpPost(getLogoutUrl().build());
+            HttpPost post = new HttpPost(getRevocationUrl());
 
             List<NameValuePair> parameters = new LinkedList<>();
             if (refreshToken != null) {
@@ -759,6 +759,11 @@ public class OAuthClient {
 
     public LogoutUrlBuilder getLogoutUrl() {
         return new LogoutUrlBuilder();
+    }
+
+    public String getRevocationUrl() {
+        UriBuilder b = OIDCLoginProtocolService.revocationUrl(UriBuilder.fromUri(baseUrl));
+        return b.build(realm).toString();
     }
 
     public String getResourceOwnerPasswordCredentialGrantUrl() {
