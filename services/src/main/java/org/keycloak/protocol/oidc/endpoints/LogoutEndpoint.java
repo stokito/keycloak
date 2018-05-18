@@ -162,12 +162,12 @@ public class LogoutEndpoint {
      *
      * If the client is a public client, then you must include a "client_id" form parameter.
      *
-     * returns 204 if successful, 400 if not with a json error response.
-     *
-     * @return
+     * @return returns 204 if successful, 400 if not with a json error response.
+     * @deprecated Use {@link RevocationEndpoint#revokeToken()} instead which is part of OAuth standard
      */
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    @Deprecated
     public Response logoutToken() {
         MultivaluedMap<String, String> form = request.getDecodedFormParameters();
         checkSsl();
