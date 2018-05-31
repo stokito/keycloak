@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.Response;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.keycloak.admin.client.resource.AuthorizationResource;
 import org.keycloak.admin.client.resource.GroupPoliciesResource;
@@ -51,6 +52,7 @@ import org.keycloak.testsuite.util.RealmBuilder;
 /**
  * @author <a href="mailto:psilva@redhat.com">Pedro Igor</a>
  */
+@Ignore
 public class GroupPolicyManagementTest extends AbstractPolicyManagementTest {
 
     @Override

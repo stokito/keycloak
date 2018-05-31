@@ -21,6 +21,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.jboss.arquillian.graphene.page.Page;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.keycloak.OAuth2Constants;
@@ -323,6 +324,7 @@ public class OAuthRedirectUriTest extends AbstractKeycloakTest {
     }
 
     @Test
+    @Ignore
     public void testLocalhost() throws IOException {
         oauth.clientId("test-installed");
 

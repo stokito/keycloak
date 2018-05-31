@@ -169,6 +169,7 @@ public class RevocationEndpoint {
         }
 
         boolean sessionIsOnline = userSessionModel != null;
+        System.out.println("sessionIsOnline: " + userSessionModel);
         if (sessionIsOnline) {
             logout(userSessionModel, offline);
         }
