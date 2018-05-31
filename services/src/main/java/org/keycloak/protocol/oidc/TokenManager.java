@@ -313,7 +313,7 @@ public class TokenManager {
             RefreshToken refreshToken = toRefreshToken(session, realm, encodedRefreshToken);
 
             if (!(TokenUtil.TOKEN_TYPE_REFRESH.equals(refreshToken.getType()) || TokenUtil.TOKEN_TYPE_OFFLINE.equals(refreshToken.getType()))) {
-                throw new OAuthErrorException(OAuthErrorException.INVALID_GRANT, "Invalid refresh token");
+                throw new OAuthErrorException(OAuthErrorException.INVALID_GRANT, "Invalid token type");
             }
 
             if (checkExpiration) {
@@ -355,6 +355,10 @@ public class TokenManager {
     public AccessToken verifyAccessToken(KeycloakSession session, RealmModel realm, String encodedAccessToken, boolean checkExpiration) throws OAuthErrorException {
         try {
             AccessToken accessToken = toAccessToken(session, realm, encodedAccessToken);
+
+            if (!(TokenUtil.TOKEN_TYPE_BEARER.equals(accessToken.getType()))) {
+                throw new OAuthErrorException(OAuthErrorException.INVALID_GRANT, "Invalid token type");
+            }
 
             if (checkExpiration) {
                 if (accessToken.getExpiration() != 0 && accessToken.isExpired()) {

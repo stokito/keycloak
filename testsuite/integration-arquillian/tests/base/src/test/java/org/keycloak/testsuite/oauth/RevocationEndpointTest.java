@@ -18,7 +18,6 @@
 package org.keycloak.testsuite.oauth;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -27,19 +26,14 @@ import org.keycloak.common.util.Time;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.testsuite.AbstractKeycloakTest;
 import org.keycloak.testsuite.AssertEvents;
-import org.keycloak.testsuite.pages.AppPage;
 import org.keycloak.testsuite.util.*;
 
 import java.util.List;
-import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
+
+import org.keycloak.testsuite.util.OAuthClient.AccessTokenResponse;
 import org.keycloak.testsuite.util.OAuthClient.TokenRevocationResponse;
 
-import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 import static org.keycloak.testsuite.admin.AbstractAdminTest.loadJson;
 
@@ -71,10 +65,25 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
 
         oauth.clientSessionState("client-session");
-        OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
         String refreshTokenString = tokenResponse.getRefreshToken();
 
-        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "password");
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "refreshT_token", "password");
+        assertEquals(Status.OK.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
+    }
+
+    @Test
+    public void revokeRefreshToken_no_hint() throws Exception {
+        oauth.doLogin("test-user@localhost", "password");
+
+        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
+
+        oauth.clientSessionState("client-session");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        String refreshTokenString = tokenResponse.getRefreshToken();
+
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, null, "password");
         assertEquals(Status.OK.getStatusCode(), tokenRevocationResponse.getStatusCode());
         assertNotNull(testingClient.testApp().getAdminLogoutAction());
     }
@@ -86,10 +95,25 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
 
         oauth.clientSessionState("client-session");
-        OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
         String accessTokenString = tokenResponse.getAccessToken();
 
-        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(accessTokenString, "password");
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(accessTokenString, "access_token", "password");
+        assertEquals(Status.OK.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
+    }
+
+    @Test
+    public void revokeAccessToken_no_hint() throws Exception {
+        oauth.doLogin("test-user@localhost", "password");
+
+        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
+
+        oauth.clientSessionState("client-session");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        String accessTokenString = tokenResponse.getAccessToken();
+
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(accessTokenString, null, "password");
         assertEquals(Status.OK.getStatusCode(), tokenRevocationResponse.getStatusCode());
         assertNotNull(testingClient.testApp().getAdminLogoutAction());
     }
@@ -101,16 +125,51 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
 
         oauth.clientSessionState("client-session");
-        OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
         String refreshTokenString = tokenResponse.getRefreshToken();
 
         adminClient.realm("test").update(RealmBuilder.create().notBefore(Time.currentTime() + 1).build());
 
         // Logout should succeed with expired refresh token, see KEYCLOAK-3302
-        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "password");
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "refreshT_token", "password");
         assertEquals(Status.BAD_REQUEST.getStatusCode(), tokenRevocationResponse.getStatusCode());
-        assertEquals("invalid_token", tokenRevocationResponse.getError());
         assertEquals("Token expired or revoked", tokenRevocationResponse.getErrorDescription());
+        assertEquals("invalid_token", tokenRevocationResponse.getError());
         assertNotNull(testingClient.testApp().getAdminLogoutAction());
     }
+
+    @Test
+    public void revokeIdToken() throws Exception {
+        oauth.doLogin("test-user@localhost", "password");
+
+        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
+
+        oauth.clientSessionState("client-session");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        String idTokenString = tokenResponse.getAccessToken();
+
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(idTokenString, null, "password");
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertEquals("", tokenRevocationResponse.getErrorDescription());
+        assertEquals("invalid_token", tokenRevocationResponse.getError());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
+    }
+
+    @Test
+    public void revoke_incorrect_hint() throws Exception {
+        oauth.doLogin("test-user@localhost", "password");
+
+        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
+
+        oauth.clientSessionState("client-session");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        String idTokenString = tokenResponse.getAccessToken();
+
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(idTokenString, "Some incorrect token type hint", "password");
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertEquals("", tokenRevocationResponse.getErrorDescription());
+        assertEquals("invalid_token", tokenRevocationResponse.getError());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
+    }
+
 }

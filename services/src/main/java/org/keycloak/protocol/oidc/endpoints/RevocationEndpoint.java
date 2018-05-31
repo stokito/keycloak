@@ -153,9 +153,9 @@ public class RevocationEndpoint {
 
     private IDToken findIdToken(String token, String tokenType) throws OAuthErrorException {
         if (tokenType.equals(TOKEN_TYPE_HINT_REFRESH_TOKEN)) {
-            return tokenManager.verifyRefreshToken(session, realm, token, false);
+            return tokenManager.verifyRefreshToken(session, realm, token, true);
         } else {
-            return tokenManager.verifyAccessToken(session, realm, token, false);
+            return tokenManager.verifyAccessToken(session, realm, token, true);
         }
     }
 

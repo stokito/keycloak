@@ -17,7 +17,6 @@
 
 package org.keycloak.testsuite.oauth;
 
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.jboss.arquillian.graphene.page.Page;
 import org.junit.Assert;
 import org.junit.Before;
@@ -563,7 +562,7 @@ public class OfflineTokenTest extends AbstractKeycloakTest {
         response = oauth.doRefreshTokenRequest(response.getRefreshToken(), "secret1");
         assertEquals(200, response.getStatusCode());
 
-        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret1");
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), null, "secret1");
         assertEquals(200, tokenRevocationResponse.getStatusCode());
 
         response = oauth.doRefreshTokenRequest(response.getRefreshToken(), "secret1");
@@ -600,7 +599,7 @@ public class OfflineTokenTest extends AbstractKeycloakTest {
         assertEquals(TokenUtil.TOKEN_TYPE_OFFLINE, offlineToken.getType());
         assertEquals(0, offlineToken.getExpiration());
 
-        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(offlineTokenString, "secret1");
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(offlineTokenString, null, "secret1");
         assertEquals(200, tokenRevocationResponse.getStatusCode());
 
         events.expectLogout(offlineToken.getSessionState())

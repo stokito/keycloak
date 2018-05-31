@@ -43,7 +43,7 @@ public class LoginCrossDCTest extends AbstractAdminCrossDCTest {
             OAuthClient.AccessTokenResponse response2 = oauth.doAccessTokenRequest(code, "password");
             Assert.assertNotNull(response2.getAccessToken());
 
-            TokenRevocationResponse response3 = oauth.doRevokeToken(response2.getRefreshToken(), "password");
+            TokenRevocationResponse response3 = oauth.doRevokeToken(response2.getRefreshToken(), null, "password");
             assertEquals(Response.Status.OK.getStatusCode(), response3.getStatusCode());
             //assertNotNull(testingClient.testApp().getAdminLogoutAction());
 

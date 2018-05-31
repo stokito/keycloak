@@ -17,7 +17,6 @@
 
 package org.keycloak.testsuite.oauth;
 
-import org.apache.http.HttpResponse;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -161,7 +160,7 @@ public class ServiceAccountTest extends AbstractKeycloakTest {
                 .detail(Details.CLIENT_AUTH_METHOD, ClientIdAndSecretAuthenticator.PROVIDER_ID)
                 .assertEvent();
 
-        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret1");
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), null, "secret1");
         assertEquals(200, tokenRevocationResponse.getStatusCode());
         events.expectLogout(accessToken.getSessionState())
                 .client("service-account-cl")

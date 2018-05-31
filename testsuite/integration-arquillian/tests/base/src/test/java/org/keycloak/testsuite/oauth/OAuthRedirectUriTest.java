@@ -384,7 +384,7 @@ public class OAuthRedirectUriTest extends AbstractKeycloakTest {
 
                 Assert.assertEquals("Expected success, but got error: " + tokenResponse.getError(), 200, tokenResponse.getStatusCode());
 
-                oauth.doRevokeToken(tokenResponse.getRefreshToken(), "password");
+                oauth.doRevokeToken(tokenResponse.getRefreshToken(), null, "password");
             }
         }
     }

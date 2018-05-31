@@ -17,7 +17,6 @@
 
 package org.keycloak.testsuite.util;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.http.Header;
 import org.apache.http.NameValuePair;
@@ -30,6 +29,7 @@ import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 import org.junit.Assert;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.RSATokenVerifier;
@@ -532,13 +532,17 @@ public class OAuthClient {
         } 
     }
 
-    public TokenRevocationResponse doRevokeToken(String refreshToken, String clientSecret) throws IOException {
+    public TokenRevocationResponse doRevokeToken(String token, String tokenTypeHint, String clientSecret) throws IOException {
+        System.err.println("Revoking a token " + token + " token_type_hint " + tokenTypeHint);
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
             HttpPost post = new HttpPost(getRevocationUrl());
 
             List<NameValuePair> parameters = new LinkedList<>();
-            if (refreshToken != null) {
-                parameters.add(new BasicNameValuePair(OAuth2Constants.PARAM_TOKEN, refreshToken));
+            if (token != null) {
+                parameters.add(new BasicNameValuePair(OAuth2Constants.PARAM_TOKEN, token));
+            }
+            if (tokenTypeHint != null) {
+                parameters.add(new BasicNameValuePair(OAuth2Constants.PARAM_TOKEN_TYPE_HINT, tokenTypeHint));
             }
             if (clientId != null && clientSecret != null) {
                 String authorization = BasicAuthHelper.createHeader(clientId, clientSecret);
@@ -1007,27 +1011,21 @@ public class OAuthClient {
                     Assert.fail("Invalid content type. Status: " + statusCode + ", contentType: " + contentType);
                 }
 
-                String s = IOUtils.toString(response.getEntity().getContent(), "UTF-8");
-                Map responseJson = JsonSerialization.readValue(s, Map.class);
-
+                String responseText = EntityUtils.toString(response.getEntity());
+                System.err.println(responseText);
+                Map responseJson = JsonSerialization.readValue(responseText, Map.class);
                 if (statusCode == 200) {
                     idToken = (String) responseJson.get("id_token");
                     accessToken = (String) responseJson.get("access_token");
+                    refreshToken = (String) responseJson.get("refresh_token");
                     tokenType = (String) responseJson.get("token_type");
                     expiresIn = (Integer) responseJson.get("expires_in");
                     refreshExpiresIn = (Integer) responseJson.get("refresh_expires_in");
-
                     // OIDC Financial API Read Only Profile : scope MUST be returned in the response from Token Endpoint
-                    if (responseJson.containsKey(OAuth2Constants.SCOPE)) {
-                        scope = (String) responseJson.get(OAuth2Constants.SCOPE);
-                    }
-
-                    if (responseJson.containsKey(OAuth2Constants.REFRESH_TOKEN)) {
-                        refreshToken = (String) responseJson.get(OAuth2Constants.REFRESH_TOKEN);
-                    }
+                    scope = (String) responseJson.get(OAuth2Constants.SCOPE);
                 } else {
                     error = (String) responseJson.get(OAuth2Constants.ERROR);
-                    errorDescription = responseJson.containsKey(OAuth2Constants.ERROR_DESCRIPTION) ? (String) responseJson.get(OAuth2Constants.ERROR_DESCRIPTION) : null;
+                    errorDescription = (String) responseJson.get(OAuth2Constants.ERROR_DESCRIPTION);
                 }
             } finally {
                 response.close();
@@ -1124,16 +1122,16 @@ public class OAuthClient {
 
                 Header[] contentTypeHeaders = response.getHeaders("Content-Type");
                 String contentType = (contentTypeHeaders != null && contentTypeHeaders.length > 0) ? contentTypeHeaders[0].getValue() : null;
-                if (!"application/json".equals(contentType)) {
-                    Assert.fail("Invalid content type. Status: " + statusCode + ", contentType: " + contentType);
-                }
-
-                String s = IOUtils.toString(response.getEntity().getContent(), "UTF-8");
-                Map responseJson = JsonSerialization.readValue(s, Map.class);
-
                 if (statusCode != 200) {
+                    if (!"application/json".equals(contentType)) {
+                        Assert.fail("Invalid content type. Status: " + statusCode + ", contentType: " + contentType);
+                    }
+
+                    String responseText = EntityUtils.toString(response.getEntity());
+                    Map responseJson = JsonSerialization.readValue(responseText, Map.class);
                     error = (String) responseJson.get(OAuth2Constants.ERROR);
                     errorDescription = responseJson.containsKey(OAuth2Constants.ERROR_DESCRIPTION) ? (String) responseJson.get(OAuth2Constants.ERROR_DESCRIPTION) : null;
+                    System.err.println(error + ": " + errorDescription);
                 }
             } finally {
                 response.close();

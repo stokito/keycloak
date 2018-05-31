@@ -17,7 +17,6 @@
 
 package org.keycloak.testsuite.oauth;
 
-import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -245,7 +244,7 @@ public class ResourceOwnerPasswordCredentialsGrantTest extends AbstractKeycloakT
                 .detail(Details.CLIENT_AUTH_METHOD, ClientIdAndSecretAuthenticator.PROVIDER_ID)
                 .assertEvent();
 
-        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret");
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), null, "secret");
         assertEquals(200, tokenRevocationResponse.getStatusCode());
         events.expectLogout(accessToken.getSessionState()).client("resource-owner").removeDetail(Details.REDIRECT_URI).assertEvent();
 
