@@ -532,14 +532,13 @@ public class OAuthClient {
         } 
     }
 
-
-    public CloseableHttpResponse doRevokeToken(String refreshToken, String clientSecret) throws IOException {
+    public TokenRevocationResponse doRevokeToken(String refreshToken, String clientSecret) throws IOException {
         try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
             HttpPost post = new HttpPost(getRevocationUrl());
 
             List<NameValuePair> parameters = new LinkedList<>();
             if (refreshToken != null) {
-                parameters.add(new BasicNameValuePair(OAuth2Constants.REFRESH_TOKEN, refreshToken));
+                parameters.add(new BasicNameValuePair(OAuth2Constants.PARAM_TOKEN, refreshToken));
             }
             if (clientId != null && clientSecret != null) {
                 String authorization = BasicAuthHelper.createHeader(clientId, clientSecret);
@@ -556,8 +555,13 @@ public class OAuthClient {
             }
             post.setEntity(formEntity);
 
-            return client.execute(post);
-        } 
+            try (CloseableHttpResponse response = client.execute(post)) {
+                TokenRevocationResponse tokenRevocationResponse = new TokenRevocationResponse(response);
+                return tokenRevocationResponse;
+            } catch (Exception e) {
+                throw new RuntimeException("Unable to revoke a token", e);
+            }
+        }
     }
 
     public AccessTokenResponse doRefreshTokenRequest(String refreshToken, String password) {
@@ -1098,10 +1102,59 @@ public class OAuthClient {
 
 
     private interface StateParamProvider {
-
         String getState();
-
     }
 
+    public static class TokenRevocationResponse {
+        private int statusCode;
+        private String error;
+        private String errorDescription;
+
+        private Map<String, String> headers;
+
+        public TokenRevocationResponse(CloseableHttpResponse response) throws Exception {
+            try {
+                statusCode = response.getStatusLine().getStatusCode();
+
+                headers = new HashMap<>();
+
+                for (Header h : response.getAllHeaders()) {
+                    headers.put(h.getName(), h.getValue());
+                }
+
+                Header[] contentTypeHeaders = response.getHeaders("Content-Type");
+                String contentType = (contentTypeHeaders != null && contentTypeHeaders.length > 0) ? contentTypeHeaders[0].getValue() : null;
+                if (!"application/json".equals(contentType)) {
+                    Assert.fail("Invalid content type. Status: " + statusCode + ", contentType: " + contentType);
+                }
+
+                String s = IOUtils.toString(response.getEntity().getContent(), "UTF-8");
+                Map responseJson = JsonSerialization.readValue(s, Map.class);
+
+                if (statusCode != 200) {
+                    error = (String) responseJson.get(OAuth2Constants.ERROR);
+                    errorDescription = responseJson.containsKey(OAuth2Constants.ERROR_DESCRIPTION) ? (String) responseJson.get(OAuth2Constants.ERROR_DESCRIPTION) : null;
+                }
+            } finally {
+                response.close();
+            }
+        }
+
+        public int getStatusCode() {
+            return statusCode;
+        }
+
+        public String getError() {
+            return error;
+        }
+
+        public String getErrorDescription() {
+            return errorDescription;
+        }
+
+        public Map<String, String> getHeaders() {
+            return headers;
+        }
+    }
 
 }
