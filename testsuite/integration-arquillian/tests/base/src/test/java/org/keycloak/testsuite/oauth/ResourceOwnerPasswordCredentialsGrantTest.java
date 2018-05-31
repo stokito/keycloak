@@ -42,6 +42,7 @@ import org.keycloak.testsuite.AssertEvents;
 import org.keycloak.testsuite.util.ClientBuilder;
 import org.keycloak.testsuite.util.ClientManager;
 import org.keycloak.testsuite.util.OAuthClient;
+import org.keycloak.testsuite.util.OAuthClient.TokenRevocationResponse;
 import org.keycloak.testsuite.util.RealmBuilder;
 import org.keycloak.testsuite.util.RealmManager;
 import org.keycloak.testsuite.util.UserBuilder;
@@ -244,8 +245,8 @@ public class ResourceOwnerPasswordCredentialsGrantTest extends AbstractKeycloakT
                 .detail(Details.CLIENT_AUTH_METHOD, ClientIdAndSecretAuthenticator.PROVIDER_ID)
                 .assertEvent();
 
-        HttpResponse logoutResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret");
-        assertEquals(204, logoutResponse.getStatusLine().getStatusCode());
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret");
+        assertEquals(200, tokenRevocationResponse.getStatusCode());
         events.expectLogout(accessToken.getSessionState()).client("resource-owner").removeDetail(Details.REDIRECT_URI).assertEvent();
 
         response = oauth.doRefreshTokenRequest(response.getRefreshToken(), "secret");

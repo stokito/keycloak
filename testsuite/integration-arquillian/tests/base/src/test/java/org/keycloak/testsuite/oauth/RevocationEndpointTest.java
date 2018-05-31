@@ -37,6 +37,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.keycloak.testsuite.util.OAuthClient.TokenRevocationResponse;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
@@ -64,7 +65,7 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
     }
 
     @Test
-    public void revokeToken() throws Exception {
+    public void revokeRefreshToken() throws Exception {
         oauth.doLogin("test-user@localhost", "password");
 
         String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
@@ -73,11 +74,24 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
         String refreshTokenString = tokenResponse.getRefreshToken();
 
-        try (CloseableHttpResponse response = oauth.doRevokeToken(refreshTokenString, "password")) {
-            assertThat(response, Matchers.statusCodeIsHC(Status.OK));
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "password");
+        assertEquals(Status.OK.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
+    }
 
-            assertNotNull(testingClient.testApp().getAdminLogoutAction());
-        }
+    @Test
+    public void revokeAccessToken() throws Exception {
+        oauth.doLogin("test-user@localhost", "password");
+
+        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
+
+        oauth.clientSessionState("client-session");
+        OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        String accessTokenString = tokenResponse.getAccessToken();
+
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(accessTokenString, "password");
+        assertEquals(Status.OK.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
     }
 
     @Test
@@ -93,86 +107,10 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         adminClient.realm("test").update(RealmBuilder.create().notBefore(Time.currentTime() + 1).build());
 
         // Logout should succeed with expired refresh token, see KEYCLOAK-3302
-        try (CloseableHttpResponse response = oauth.doRevokeToken(refreshTokenString, "password")) {
-            assertThat(response, Matchers.statusCodeIsHC(Status.BAD_REQUEST));
-
-            assertNotNull(testingClient.testApp().getAdminLogoutAction());
-        }
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "password");
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertEquals("invalid_token", tokenRevocationResponse.getError());
+        assertEquals("Token expired or revoked", tokenRevocationResponse.getErrorDescription());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
     }
-
-    @Ignore
-    @Test
-    public void revokeTokenWithValidIdToken() throws Exception {
-        oauth.doLogin("test-user@localhost", "password");
-
-        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
-
-        oauth.clientSessionState("client-session");
-        OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
-        String idTokenString = tokenResponse.getIdToken();
-
-        String logoutUrl = oauth.getLogoutUrl()
-          .idTokenHint(idTokenString)
-          .postLogoutRedirectUri(AppPage.baseUrl)
-          .build();
-        
-        try (CloseableHttpClient c = HttpClientBuilder.create().disableRedirectHandling().build();
-          CloseableHttpResponse response = c.execute(new HttpGet(logoutUrl))) {
-            assertThat(response, Matchers.statusCodeIsHC(Status.FOUND));
-            assertThat(response.getFirstHeader(HttpHeaders.LOCATION).getValue(), is(AppPage.baseUrl));
-        }
-    }
-
-    @Ignore
-    @Test
-    public void revokeTokenWithExpiredIdToken() throws Exception {
-        oauth.doLogin("test-user@localhost", "password");
-
-        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
-
-        oauth.clientSessionState("client-session");
-        OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
-        String idTokenString = tokenResponse.getIdToken();
-
-        // Logout should succeed with expired ID token, see KEYCLOAK-3399
-        setTimeOffset(60 * 60 * 24);
-
-        String logoutUrl = oauth.getLogoutUrl()
-          .idTokenHint(idTokenString)
-          .postLogoutRedirectUri(AppPage.baseUrl)
-          .build();
-
-        try (CloseableHttpClient c = HttpClientBuilder.create().disableRedirectHandling().build();
-          CloseableHttpResponse response = c.execute(new HttpGet(logoutUrl))) {
-            assertThat(response, Matchers.statusCodeIsHC(Status.FOUND));
-            assertThat(response.getFirstHeader(HttpHeaders.LOCATION).getValue(), is(AppPage.baseUrl));
-        }
-    }
-
-    @Ignore
-    @Test
-    public void revokeTokenWithValidIdTokenWhenLoggedOutByAdmin() throws Exception {
-        oauth.doLogin("test-user@localhost", "password");
-
-        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
-
-        oauth.clientSessionState("client-session");
-        OAuthClient.AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
-        String idTokenString = tokenResponse.getIdToken();
-
-        adminClient.realm("test").logoutAll();
-
-        // Logout should succeed with user already logged out, see KEYCLOAK-3399
-        String logoutUrl = oauth.getLogoutUrl()
-          .idTokenHint(idTokenString)
-          .postLogoutRedirectUri(AppPage.baseUrl)
-          .build();
-
-        try (CloseableHttpClient c = HttpClientBuilder.create().disableRedirectHandling().build();
-          CloseableHttpResponse response = c.execute(new HttpGet(logoutUrl))) {
-            assertThat(response, Matchers.statusCodeIsHC(Status.FOUND));
-            assertThat(response.getFirstHeader(HttpHeaders.LOCATION).getValue(), is(AppPage.baseUrl));
-        }
-    }
-
 }

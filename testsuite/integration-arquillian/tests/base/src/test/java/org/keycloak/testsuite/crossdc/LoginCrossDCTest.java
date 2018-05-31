@@ -19,13 +19,12 @@ package org.keycloak.testsuite.crossdc;
 
 import javax.ws.rs.core.Response;
 
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.junit.Test;
 import org.keycloak.testsuite.Assert;
-import org.keycloak.testsuite.util.Matchers;
 import org.keycloak.testsuite.util.OAuthClient;
+import org.keycloak.testsuite.util.OAuthClient.TokenRevocationResponse;
 
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -38,16 +37,15 @@ public class LoginCrossDCTest extends AbstractAdminCrossDCTest {
 
         //log.info("Started to sleep");
         //Thread.sleep(10000000);
-        for (int i=0 ; i<30 ; i++) {
+        for (int i = 0; i < 30; i++) {
             OAuthClient.AuthorizationEndpointResponse response1 = oauth.doLogin("test-user@localhost", "password");
             String code = response1.getCode();
             OAuthClient.AccessTokenResponse response2 = oauth.doAccessTokenRequest(code, "password");
             Assert.assertNotNull(response2.getAccessToken());
 
-            try (CloseableHttpResponse response3 = oauth.doRevokeToken(response2.getRefreshToken(), "password")) {
-                assertThat(response3, Matchers.statusCodeIsHC(Response.Status.NO_CONTENT));
-                //assertNotNull(testingClient.testApp().getAdminLogoutAction());
-            }
+            TokenRevocationResponse response3 = oauth.doRevokeToken(response2.getRefreshToken(), "password");
+            assertEquals(Response.Status.OK.getStatusCode(), response3.getStatusCode());
+            //assertNotNull(testingClient.testApp().getAdminLogoutAction());
 
             log.infof("Iteration %d finished", i);
         }

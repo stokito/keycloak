@@ -53,6 +53,7 @@ import org.keycloak.testsuite.pages.LoginPage;
 import org.keycloak.testsuite.util.ClientBuilder;
 import org.keycloak.testsuite.util.ClientManager;
 import org.keycloak.testsuite.util.OAuthClient;
+import org.keycloak.testsuite.util.OAuthClient.TokenRevocationResponse;
 import org.keycloak.testsuite.util.RealmBuilder;
 import org.keycloak.testsuite.util.RealmManager;
 import org.keycloak.testsuite.util.RoleBuilder;
@@ -562,8 +563,8 @@ public class OfflineTokenTest extends AbstractKeycloakTest {
         response = oauth.doRefreshTokenRequest(response.getRefreshToken(), "secret1");
         assertEquals(200, response.getStatusCode());
 
-        CloseableHttpResponse logoutResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret1");
-        assertEquals(200, logoutResponse.getStatusLine().getStatusCode());
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(response.getRefreshToken(), "secret1");
+        assertEquals(200, tokenRevocationResponse.getStatusCode());
 
         response = oauth.doRefreshTokenRequest(response.getRefreshToken(), "secret1");
         assertEquals(400, response.getStatusCode());
@@ -599,9 +600,8 @@ public class OfflineTokenTest extends AbstractKeycloakTest {
         assertEquals(TokenUtil.TOKEN_TYPE_OFFLINE, offlineToken.getType());
         assertEquals(0, offlineToken.getExpiration());
 
-        try (CloseableHttpResponse logoutResponse = oauth.doRevokeToken(offlineTokenString, "secret1")) {
-            assertEquals(200, logoutResponse.getStatusLine().getStatusCode());
-        }
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(offlineTokenString, "secret1");
+        assertEquals(200, tokenRevocationResponse.getStatusCode());
 
         events.expectLogout(offlineToken.getSessionState())
                 .client("offline-client")
