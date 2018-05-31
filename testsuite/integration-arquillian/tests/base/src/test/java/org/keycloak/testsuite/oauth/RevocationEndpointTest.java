@@ -119,6 +119,26 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
     }
 
     @Test
+    public void revokeTokenStaleRefreshToken() throws Exception {
+        oauth.doLogin("test-user@localhost", "password");
+
+        String code = oauth.getCurrentQuery().get(OAuth2Constants.CODE);
+
+        oauth.clientSessionState("client-session");
+        AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
+        String refreshTokenString = tokenResponse.getRefreshToken();
+
+        adminClient.realm("test").update(RealmBuilder.create().notBefore(Time.currentTime() + 10).build());
+
+        // Logout should succeed with expired refresh token, see KEYCLOAK-3302
+        TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "refreshT_token", "password");
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), tokenRevocationResponse.getStatusCode());
+        assertEquals("Token expired or revoked", tokenRevocationResponse.getErrorDescription());
+        assertEquals("invalid_token", tokenRevocationResponse.getError());
+        assertNotNull(testingClient.testApp().getAdminLogoutAction());
+    }
+
+    @Test
     public void revokeTokenExpiredRefreshToken() throws Exception {
         oauth.doLogin("test-user@localhost", "password");
 
@@ -128,7 +148,9 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         AccessTokenResponse tokenResponse = oauth.doAccessTokenRequest(code, "password");
         String refreshTokenString = tokenResponse.getRefreshToken();
 
-        adminClient.realm("test").update(RealmBuilder.create().notBefore(Time.currentTime() + 1).build());
+        // Logout should succeed with expired ID token, see KEYCLOAK-3399
+        setTimeOffset(60 * 60 * 24);
+//        adminClient.realm("test").update(RealmBuilder.create().notBefore(Time.currentTime() + 10).build());
 
         // Logout should succeed with expired refresh token, see KEYCLOAK-3302
         TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(refreshTokenString, "refreshT_token", "password");
@@ -151,7 +173,7 @@ public class RevocationEndpointTest extends AbstractKeycloakTest {
         TokenRevocationResponse tokenRevocationResponse = oauth.doRevokeToken(idTokenString, null, "password");
         assertEquals(Status.BAD_REQUEST.getStatusCode(), tokenRevocationResponse.getStatusCode());
         assertEquals("", tokenRevocationResponse.getErrorDescription());
-        assertEquals("invalid_token", tokenRevocationResponse.getError());
+        assertEquals("unsupported_token_type", tokenRevocationResponse.getError());
         assertNotNull(testingClient.testApp().getAdminLogoutAction());
     }
 
